@@ -3,11 +3,15 @@ package com.jasonoh.mediaplayertest_20210504_1;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -25,6 +29,10 @@ public class MainActivity extends AppCompatActivity {
     MediaPlayer mPlayer;
     ProgressBar progressBar;
 
+    MyService myService;
+
+    SharedPreferences preferences;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,6 +42,8 @@ public class MainActivity extends AppCompatActivity {
         ttvVideo = findViewById(R.id.ttv_video);
         tvTime = findViewById(R.id.tv_time);
         skbVideo = findViewById(R.id.skb_video);
+
+        Toast.makeText(this, getSharedPreferences("Login", MODE_PRIVATE).getString("pausedTime", null) + "", Toast.LENGTH_SHORT).show();
 
         // 비디오 나타내기
         playVideo();
@@ -67,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
                 mPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                     @Override
                     public void onPrepared(MediaPlayer mp) {
-                        Toast.makeText(MainActivity.this, "Video Prepared", Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(MainActivity.this, "Video Prepared", Toast.LENGTH_SHORT).show();
                         playStart();
                         progressBar.setVisibility(View.GONE);
                     }
@@ -153,6 +163,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.e("TAG", "destroy");
+        preferences = getSharedPreferences("Login", MODE_PRIVATE);
+        SharedPreferences.Editor editor =preferences.edit();
+        editor.putString("pausedTime", mPlayer.getCurrentPosition() + "");
+        editor.commit();
+    }
+
     private void playStart(){
 //        if(progressBar.getVisibility() == View.GONE){
 //            progressBar.setVisibility(View.VISIBLE);
@@ -165,9 +185,29 @@ public class MainActivity extends AppCompatActivity {
 //        }
 
         if(mPlayer != null && !mPlayer.isPlaying()){
-            mPlayer.start();
-            skbVideo.setMax(mPlayer.getDuration());
-            seekBarPlay();
+
+            if(getSharedPreferences("Login", MODE_PRIVATE).getString("pausedTime", null) != null){
+                new AlertDialog.Builder(this).setMessage("이전에 보던 시간부터 보시겠습니까?").setNegativeButton("확인", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        skbVideo.setMax(mPlayer.getDuration());
+                        mPlayer.seekTo(Integer.parseInt(getSharedPreferences("Login", MODE_PRIVATE).getString("pausedTime", null)));
+                        mPlayer.start();
+                        seekBarPlay();
+                    }
+                }).setPositiveButton("거절", ((dialog, which) -> {
+
+                    preferences = getSharedPreferences("Login", MODE_PRIVATE);
+                    SharedPreferences.Editor editor =preferences.edit();
+                    editor.putString("pausedTime", 0 + "");
+                    editor.commit();
+
+                    mPlayer.start();
+                    skbVideo.setMax(mPlayer.getDuration());
+                    seekBarPlay();
+                })).create().show();
+            }
+
             return;
 //            mPlayer.prepareAsync();
         }
@@ -175,6 +215,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void playPause(){
         if(mPlayer != null && mPlayer.isPlaying()){
+            preferences = getSharedPreferences("Login", MODE_PRIVATE);
+            SharedPreferences.Editor editor =preferences.edit();
+            editor.putString("pausedTime", mPlayer.getCurrentPosition() + "");
+            editor.commit();
             mPlayer.pause();
         }
 
