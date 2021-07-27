@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
@@ -29,6 +30,8 @@ public class MainActivity extends AppCompatActivity {
     MediaPlayer mPlayer;
     ProgressBar progressBar;
 
+    Handler handler = new Handler();
+
     MyService myService;
 
     SharedPreferences preferences;
@@ -50,6 +53,11 @@ public class MainActivity extends AppCompatActivity {
 
     }// onCreate method
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
     private void playVideo(){
 
         url = "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4";
@@ -59,6 +67,8 @@ public class MainActivity extends AppCompatActivity {
         ttvVideo.setSurfaceTextureListener(ttvVideoListener);
 
         initSeekBar();
+
+
 
     }// playVideo method
 
@@ -78,7 +88,32 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onPrepared(MediaPlayer mp) {
 //                        Toast.makeText(MainActivity.this, "Video Prepared", Toast.LENGTH_SHORT).show();
-                        playStart();
+
+                        if(getSharedPreferences("Login", MODE_PRIVATE).getString("pausedTime", null) != null){
+                            new AlertDialog.Builder(MainActivity.this).setMessage("이전에 보던 시간부터 보시겠습니까?").setNegativeButton("확인", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    skbVideo.setMax(mPlayer.getDuration());
+                                    mPlayer.seekTo(Integer.parseInt(getSharedPreferences("Login", MODE_PRIVATE).getString("pausedTime", null)));
+                                    mPlayer.start();
+                                    seekBarPlay();
+                                }
+                            }).setPositiveButton("거절", ((dialog, which) -> {
+
+                                preferences = getSharedPreferences("Login", MODE_PRIVATE);
+                                SharedPreferences.Editor editor =preferences.edit();
+                                editor.putString("pausedTime", 0 + "");
+                                editor.commit();
+
+                                mPlayer.start();
+                                skbVideo.setMax(mPlayer.getDuration());
+                                seekBarPlay();
+                            })).create().show();
+                        }else{
+                            playStart();
+                        }
+
+//                        playStart();
                         progressBar.setVisibility(View.GONE);
                     }
                 });
@@ -151,8 +186,8 @@ public class MainActivity extends AppCompatActivity {
                         seekBarPlay();
                     }
                 };
-                Handler handler = new Handler();
-                handler.postDelayed(runnable, 1000);
+//                Handler handler = new Handler();
+                handler.postDelayed(runnable, 0);
 
 
 //                tvTime.setText(min2 + " 분" + sec2 + " 초  //  " + min + " 분" + sec + " 초");
@@ -186,27 +221,9 @@ public class MainActivity extends AppCompatActivity {
 
         if(mPlayer != null && !mPlayer.isPlaying()){
 
-            if(getSharedPreferences("Login", MODE_PRIVATE).getString("pausedTime", null) != null){
-                new AlertDialog.Builder(this).setMessage("이전에 보던 시간부터 보시겠습니까?").setNegativeButton("확인", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        skbVideo.setMax(mPlayer.getDuration());
-                        mPlayer.seekTo(Integer.parseInt(getSharedPreferences("Login", MODE_PRIVATE).getString("pausedTime", null)));
-                        mPlayer.start();
-                        seekBarPlay();
-                    }
-                }).setPositiveButton("거절", ((dialog, which) -> {
-
-                    preferences = getSharedPreferences("Login", MODE_PRIVATE);
-                    SharedPreferences.Editor editor =preferences.edit();
-                    editor.putString("pausedTime", 0 + "");
-                    editor.commit();
-
-                    mPlayer.start();
-                    skbVideo.setMax(mPlayer.getDuration());
-                    seekBarPlay();
-                })).create().show();
-            }
+            mPlayer.start();
+            skbVideo.setMax(mPlayer.getDuration());
+            seekBarPlay();
 
             return;
 //            mPlayer.prepareAsync();
